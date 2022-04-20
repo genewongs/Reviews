@@ -4,7 +4,7 @@ module.exports = {
   get: function(req, res) {
     models.get()
       .then(data => res.send(data.rows))
-      .catch(err => res.sendStatus(500));
+      .catch(err => console.log(err));
   },
 
   post: function(req, res) {

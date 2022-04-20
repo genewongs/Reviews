@@ -5,7 +5,7 @@ const pool = new Pool({
   password: 'endorphins',
   host: 'localhost',
   port: '5432',
-  database: 'users'
+  database: 'sdc_lw'
 });
 
 module.exports = pool;

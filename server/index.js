@@ -11,10 +11,10 @@ app.use(cors());
 app.use(express.json());
 
 //ROUTES
-app.post('/users', controllers.post);
-app.get('/users', controllers.get);
-app.put('/users', controllers.update);
-app.delete('/users', controllers.delete);
+app.post('/reviews', controllers.post);
+app.get('/reviews', controllers.get);
+app.put('/reviews', controllers.update);
+app.delete('/reviews', controllers.delete);
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`)
