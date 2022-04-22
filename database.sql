@@ -13,13 +13,12 @@ DROP DATABASE IF EXISTS sdc_lw;
 CREATE DATABASE sdc_lw;
 
 \c sdc_lw;
-
 CREATE TABLE Reviews (
   id SERIAL UNIQUE NOT NULL,
   product_id SERIAL NOT NULL,
   rating INTEGER NOT NULL,
-  date TIMESTAMP NOT NULL,
-  summary VARCHAR(60) NULL,
+  date VARCHAR(16) NOT NULL,
+  summary VARCHAR(128) NULL,
   body VARCHAR(1000) NOT NULL,
   recommend BOOLEAN NOT NULL,
   reported BOOLEAN NOT NULL,
@@ -30,9 +29,27 @@ CREATE TABLE Reviews (
   PRIMARY KEY (id)
 );
 
--- ---
--- Table Characteristics
--- ---
+CREATE TABLE Photos (
+  id SERIAL NOT NULL,
+  review_id INTEGER NOT NULL,
+  url TEXT NOT NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE chars (
+  id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+  name VARCHAR(8) NOT NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE characteristics_reviews (
+  id SERIAL UNIQUE NOT NULL,
+  characteristic_id INTEGER NOT NULL,
+  review_id INTEGER NOT NULL,
+  value INTEGER NOT NULL,
+  PRIMARY KEY (id)
+);
 
 CREATE TABLE characteristics (
   id SERIAL NOT NULL,
@@ -42,40 +59,48 @@ CREATE TABLE characteristics (
   PRIMARY KEY (id)
 );
 
-CREATE TABLE chars (
-  id INTEGER NOT NULL,
-  product_id INTEGER NOT NULL,
-  name VARCHAR(8) NOT NULL,
+CREATE TABLE Reviews2 (
+  id SERIAL UNIQUE NOT NULL,
+  product_id SERIAL NOT NULL,
+  rating INTEGER NOT NULL,
+  date VARCHAR(16) NOT NULL,
+  summary VARCHAR(128) NULL,
+  body VARCHAR(1000) NOT NULL,
+  recommend BOOLEAN NOT NULL,
+  reported BOOLEAN NOT NULL,
+  reviewer_name TEXT NOT NULL,
+  reviewer_email text NOT NULL,
+  response VARCHAR(1000) NOT NULL,
+  helpfulness INT NOT NULL,
+  photos JSON DEFAULT '[]',
+  PRIMARY KEY (id)
 );
 
-CREATE TABLE characteristics_reviews (
-  id SERIAL UNIQUE NOT NULL,
-  characteristic_id INTEGER NOT NULL,
-  review_id INTEGER NOT NULL,
-  value INTEGER NOT NULL,
-  name VARCHAR(12) NOT NULL,
-);
+
+-- ---
+-- Table Characteristics
+-- ---
+
 
 -- ---
 -- Table Photos
 -- ---
 
-CREATE TABLE Photos (
-  id SERIAL NOT NULL,
-  review_id INTEGER NOT NULL,
-  url TEXT NOT NULL,
-  PRIMARY KEY (id)
-);
-
 -- ---
 -- Foreign Keys
 -- ---
 
-ALTER TABLE Photos ADD FOREIGN KEY (review_id) REFERENCES Reviews (id);
-ALTER TABLE characteristics_reviews ADD FOREIGN KEY (review_id) REFERENCES Reviews (id);
-ALTER TABLE characteristics_reviews ADD FOREIGN KEY (characteristic_id) REFERENCES Chars (id);
+-- ALTER TABLE Photos ADD FOREIGN KEY (review_id) REFERENCES Reviews (id);
+-- ALTER TABLE characteristics_reviews ADD FOREIGN KEY (review_id) REFERENCES Reviews (id);
+-- ALTER TABLE characteristics_reviews ADD FOREIGN KEY (characteristic_id) REFERENCES Chars (id);
 
 --ALTER TABLE Photos ADD FOREIGN KEY (review_id) REFERENCES Reviews (review_id); match these instead of review_id.
+
+--IMPORT CSVs
+\copy reviews FROM './reviews.csv' WITH (FORMAT CSV, HEADER);
+\copy photos FROM './reviews_photos.csv' WITH (FORMAT CSV, HEADER);
+\copy chars FROM './characteristics.csv' WITH (FORMAT CSV, HEADER);
+\copy characteristics_reviews FROM './characteristic_reviews.csv' WITH (FORMAT CSV, HEADER);
 
 --Create Characteristics Table
 INSERT INTO characteristics (id, product_id, name, value)
@@ -84,10 +109,14 @@ FROM chars INNER JOIN characteristics_reviews
 ON chars.id = characteristics_reviews.characteristic_id
 ORDER BY characteristics_reviews.characteristic_id;
 
+INSERT INTO reviews2
+SELECT reviews.*, COALESCE(photourl.photos, '[]') photos FROM reviews
+LEFT JOIN (SELECT review_id, JSON_AGG(JSON_BUILD_OBJECT('url', url)) photos FROM photos GROUP BY review_id) photourl
+ON photourl.review_id = reviews.id;
+
 -- ---
 -- PARTIAL INDEXES
 -- ---
-
 
 CREATE INDEX idx_rvw_product_id ON reviews(product_id);
 --CREATE INDEX idx_rvw_rec ON reviews(recommend);
@@ -114,9 +143,3 @@ CREATE INDEX idx_rvw_product_id ON reviews(product_id);
 -- (,,,);
 -- INSERT INTO Photos (review_id,id,url) VALUES
 -- (,,);
-
---IMPORT CSVs
-\copy photos FROM './reviews_photos.csv' WITH (FORMAT CSV, HEADER);
-\copy reviews FROM './reviews.csv' WITH (FORMAT CSV, HEADER);
-\copy characteristics_reviews FROM './characteristic_reviews.csv' WITH (FORMAT CSV, HEADER);
-\copy chars FROM './characteristics.csv' WITH (FORMAT CSV, HEADER);
