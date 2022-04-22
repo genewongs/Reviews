@@ -3,18 +3,22 @@ const app = express();
 const cors = require('cors');
 const pool = require('./db');
 const controllers = require('./controllers');
+require('dotenv').config();
+const Routers = require('./routes.js');
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 //middleware
 app.use(cors());
 app.use(express.json());
 
+
+app.use('/', Routers)
 //ROUTES
-app.post('/reviews', controllers.post);
-app.get('/reviews', controllers.get);
-app.put('/reviews', controllers.update);
-app.delete('/reviews', controllers.delete);
+// app.post('/', Routers);
+// app.get('/', Routers);
+// app.put('/', Routers);
+// app.delete('/', Routers);
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`)

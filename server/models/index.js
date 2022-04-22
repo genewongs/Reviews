@@ -3,7 +3,7 @@ var pool = require('../db');
 module.exports = {
   get: function() {
     return new Promise ((res, rej) => {
-      let sql = 'SELECT characteristics.*, characteristics_reviews.value, characteristics_reviews.review_id FROM characteristics INNER JOIN characteristics_reviews ON characteristics.id = characteristics_reviews.characteristic_id ORDER BY characteristics.id LIMIT 100';
+      let sql = 'SELECT r2.id as review_id, r2.rating, r2.summary, r2.recommend, r2.response, r2.body, r2.date, r2.reviewer_name, r2.helpfulness, (SELECT array_to_json(coalesce(array_agg(photo), array[]::record[])) from (select p.id, p.url FROM reviews r inner join photos p on r.id = p.review_id where p.review_id = r2.id ) photo ) as photos from reviews r2 where r2.product_id = 65635 and r2.reported <> true';
       pool.query(sql, (err, results) => {
         if (err) {
           return rej(err);
