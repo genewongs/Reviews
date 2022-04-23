@@ -17,27 +17,25 @@ module.exports = {
 
   getMeta: function(req, res) {
     models.getMeta(req.query.product_id)
-      .then(data => res.send(data.rows))
+      .then(data => res.send(data.rows[0].characteristics))
       .catch(err => console.log(err));
   },
 
   post: function(req, res) {
-    console.log(req.body)
       models.post(req.body)
         .then(data => res.status(201).send(data.rows))
         .catch(err => console.log(err));
   },
 
   updateHelpfullness: function(req, res) {
-    console.log(req.params)
-    models.updateHelpfullness()
-      .then(data => res.send(data))
+    models.updateHelpfullness(req.params)
+      .then(data => res.sendStatus(204))
       .catch(err => console.log(err));
   },
 
-  delete: function(req, res) {
-    models.delete(req.body)
-      .then(data => res.sendStatus(200))
+  updateReport: function(req, res) {
+    models.updateReport(req.params)
+      .then(data => res.sendStatus(204))
       .catch(err => console.log(err));
   }
 }

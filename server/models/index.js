@@ -16,7 +16,7 @@ module.exports = {
   getMeta: function(params) {
     return new Promise ((res, rej) => {
       const product_id = params;
-      let sql = `SELECT JSON_BUILD_OBJECT('product_id', ${params}, 'ratings', reviewsMeta.ratings,'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.combinedChar) as what FROM
+      let sql = `SELECT JSON_BUILD_OBJECT('product_id', ${params}, 'ratings', reviewsMeta.ratings,'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.combinedChar) as characteristics FROM
       (
         SELECT * FROM
           (SELECT JSON_OBJECT_AGG(recommend_count.recommend, recommend_count.count) recommend, row_number() OVER() FROM
@@ -50,12 +50,38 @@ module.exports = {
 
   post: function(reqBody) {
     const { product_id, rating, summary, body, recommend, name, email, photos, characteristics } = reqBody;
+    let emptyObj = {id: null, value: null};
+    const { Length = emptyObj, Comfort = emptyObj, Quality = emptyObj, Fit = emptyObj, Size = emptyObj, Width = emptyObj } = characteristics;
     const date = new Date();
     return new Promise ((res, rej) => {
-      let sql = `INSERT INTO reviews2
-      (product_id, rating, date, summary, body, recommend, reported, reviewer_name, reviewer_email, response, helpfulness, photos)
-      VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
-      pool.query(sql, [product_id, rating, date.toISOString(), summary, body, recommend, false, name, email, '', 0, photos], (err, results) => {
+      let sql = `
+      with j as (
+        INSERT INTO reviews2
+        (product_id, rating, date, summary, body, recommend, reported, reviewer_name, reviewer_email, response, helpfulness, photos)
+        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        )
+      INSERT INTO characteristics (product_id, characteristic_id, name, value)
+      SELECT * FROM (
+        VALUES
+        ($1::integer, $13::integer, 'Length', $14::integer),
+        ($1::integer, $15::integer, 'Comfort', $16::integer),
+        ($1::integer, $17::integer, 'Quality', $18::integer),
+        ($1::integer, $19::integer, 'Fit', $20::integer),
+        ($1::integer, $21::integer, 'Size', $22::integer),
+        ($1::integer, $23::integer, 'Width', $24::integer)
+      ) as vals
+      WHERE column2 IS NOT NULL;
+      `;
+      pool.query(sql,
+        [product_id, rating, date.toISOString(), summary, body, recommend, false, name, email, '', 0, photos,
+          Length.id, Length.value,
+          Comfort.id, Comfort.value,
+          Quality.id, Quality.value,
+          Fit.id, Fit.value,
+          Size.id, Size.value,
+          Width.id, Width.value
+        ],
+        (err, results) => {
       if(err) {
         return rej(err);
       }
@@ -64,9 +90,43 @@ module.exports = {
     });
   },
 
-  updateHelpfullness: function(user) {
+  postCharacteristics: function(reqBody) {
+    const { product_id, rating, summary, body, recommend, name, email, photos, characteristics } = reqBody;
+    let emptyObj = {id: null, value: null};
+    const { Length = emptyObj, Comfort = emptyObj, Quality = emptyObj, Fit = emptyObj, Size = emptyObj, Width = emptyObj } = characteristics;
+    return new Promise ((res,rej) => {
+      let sql = `
+      INSERT INTO characterstics (product_id, characteristics_id, name, value)
+      SELECT * FROM (
+        VALUES
+        ($1, $2, 'Length', $3),
+        ($4, $5, 'Comfort', $6),
+        ($7, $8, 'Quality', $9),
+        ($10, $11, 'Fit', $12),
+        ($13, $14, 'Size', $15),
+        ($16, $17, 'Width', $18)
+      ) as vals
+      WHERE column2 IS NOT NULL;
+      `
+      pool.query(sql,
+        [product_id, Length.id, Length.value,
+          product_id, Comfort.id, Comfort.value,
+          product_id, Quality.id, Quality.value,
+          product_id, Fit.id, Fit.value,
+          product_id, Size.id, Size.value,
+          product_id, Width.id, Width.value],
+        (err, results) => {
+        if(err) {
+          return rej(err);
+        }
+        res(results);
+      });
+    });
+  },
+
+  updateHelpfullness: function(params) {
     return new Promise((res,rej) => {
-      let sql = `UPDATE reviews SET helpfulness = helpfullness + 1 WHERE id = ${reviewId}`
+      let sql = `UPDATE reviews2 SET helpfulness = helpfulness + 1 WHERE id = ${params.review_id}`
       pool.query(sql, (err, results) => {
         if(err){
           return rej(err);
@@ -76,15 +136,15 @@ module.exports = {
     });
   },
 
-  delete: function(user) {
+  updateReport: function(params) {
     return new Promise((res,rej) => {
-      const { user_id } = user;
-      let sql = "DELETE FROM person WHERE user_id = $1";
-      pool.query(sql, [user_id], (err, results) => {
-        if(err) {
+      let sql = `UPDATE reviews2 SET reported = true WHERE id = ${params.review_id}`
+      pool.query(sql, (err, results) => {
+        if(err){
           return rej(err);
-        } else { return res(results); }
-      });
+        }
+        res(results);
+      })
     });
   },
 }
