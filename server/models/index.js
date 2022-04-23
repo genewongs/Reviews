@@ -1,9 +1,16 @@
 var pool = require('../db');
 
 module.exports = {
-  getReviews: function(product_id, page, count) {
+  getReviews: function(product_id, page = 1, count = 5, sortBy = 'relevant') {
+    sortBy === 'relevant' ? sortBy = 'helpfulness DESC, date ' : sortBy = sortBy;
     return new Promise ((res, rej) => {
-      let sql = `SELECT id as review_id, rating, summary, recommend, response, body, date, reviewer_name, helpfulness, photos FROM reviews2 WHERE product_id = ${product_id} LIMIT ${count}`;
+      let sql = `
+      SELECT id as review_id, rating, summary, recommend, response, body, date, reviewer_name, photos
+      FROM reviews2
+      WHERE product_id = ${product_id}
+      ORDER BY ${sortBy} DESC
+      LIMIT ${count}
+      `;
       pool.query(sql, (err, results) => {
         if (err) {
           return rej(err);
@@ -12,6 +19,9 @@ module.exports = {
       });
     });
   },
+
+//  ORDER BY helpfulness desc
+  //      date DESC
 
   getMeta: function(params) {
     return new Promise ((res, rej) => {

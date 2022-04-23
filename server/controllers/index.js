@@ -2,7 +2,7 @@ const models = require('../models');
 
 module.exports = {
   getReviews: function(req, res) {
-    models.getReviews(req.query.product_id, req.query.page = 1, req.query.count = 5)
+    models.getReviews(req.query.product_id, req.query.page = 1, req.query.count = 5, req.query.sort)
       .then(data => {
         let result = {
           product: req.query.product_id,
