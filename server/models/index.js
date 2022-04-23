@@ -1,9 +1,9 @@
 var pool = require('../db');
 
 module.exports = {
-  get: function() {
+  getReviews: function(product_id, page, count) {
     return new Promise ((res, rej) => {
-      let sql = 'SELECT r2.id as review_id, r2.rating, r2.summary, r2.recommend, r2.response, r2.body, r2.date, r2.reviewer_name, r2.helpfulness, (SELECT array_to_json(coalesce(array_agg(photo), array[]::record[])) from (select p.id, p.url FROM reviews r inner join photos p on r.id = p.review_id where p.review_id = r2.id ) photo ) as photos from reviews r2 where r2.product_id = 65635 and r2.reported <> true';
+      let sql = `SELECT id as review_id, rating, summary, recommend, response, body, date, reviewer_name, helpfulness, photos FROM reviews2 WHERE product_id = ${product_id} LIMIT ${count}`;
       pool.query(sql, (err, results) => {
         if (err) {
           return rej(err);
@@ -13,11 +13,49 @@ module.exports = {
     });
   },
 
-  post: function(params) {
-    const { firstname, lastname, email, registered } = params;
+  getMeta: function(params) {
     return new Promise ((res, rej) => {
-      let sql = "INSERT INTO person(firstname, lastname, email, registered) VALUES($1, $2, $3, $4)";
-      pool.query(sql, [firstname, lastname, email, registered], (err, results) => {
+      const product_id = params;
+      let sql = `SELECT JSON_BUILD_OBJECT('product_id', ${params}, 'ratings', reviewsMeta.ratings,'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.combinedChar) as what FROM
+      (
+        SELECT * FROM
+          (SELECT JSON_OBJECT_AGG(recommend_count.recommend, recommend_count.count) recommend, row_number() OVER() FROM
+            (SELECT recommend, COUNT(*) FROM reviews2 where product_id=${params} GROUP BY recommend) recommend_count
+          ) recommend_obj
+        INNER JOIN
+          (SELECT JSON_OBJECT_AGG(rating_counts.rating, rating_counts.count) ratings, row_number() OVER() FROM
+            (SELECT rating, COUNT(*) FROM reviews2 WHERE product_id=${params} GROUP BY rating) rating_counts
+          ) rating_obj
+        ON recommend_obj.row_number = rating_obj.row_number
+        INNER JOIN
+        (
+        SELECT JSON_OBJECT_AGG(avg_obj.name, avg_obj.value) combinedChar, row_number() OVER() FROM (
+          SELECT name,JSON_BUILD_OBJECT('id', averages.characteristic_id, 'value', averages.value) as value FROM
+          (SELECT name, AVG(value) AS value, characteristic_id
+           FROM characteristics
+           WHERE product_id=${params}
+           GROUP BY characteristic_id, name) AS averages
+        ) as avg_obj
+        ) as characteristics_aggregate
+        ON rating_obj.row_number = characteristics_aggregate.row_number
+      ) reviewsMeta`;
+      pool.query(sql, (err, results) => {
+        if (err) {
+          return rej(err);
+        }
+        res(results);
+      });
+    })
+  },
+
+  post: function(reqBody) {
+    const { product_id, rating, summary, body, recommend, name, email, photos, characteristics } = reqBody;
+    const date = new Date();
+    return new Promise ((res, rej) => {
+      let sql = `INSERT INTO reviews2
+      (product_id, rating, date, summary, body, recommend, reported, reviewer_name, reviewer_email, response, helpfulness, photos)
+      VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
+      pool.query(sql, [product_id, rating, date.toISOString(), summary, body, recommend, false, name, email, '', 0, photos], (err, results) => {
       if(err) {
         return rej(err);
       }
@@ -26,11 +64,10 @@ module.exports = {
     });
   },
 
-  update: function(user) {
+  updateHelpfullness: function(user) {
     return new Promise((res,rej) => {
-      const { email, user_id } = user;
-      let sql = "UPDATE person SET email = $1 WHERE user_id = $2"
-      pool.query(sql, [email, user_id], (err, results) => {
+      let sql = `UPDATE reviews SET helpfulness = helpfullness + 1 WHERE id = ${reviewId}`
+      pool.query(sql, (err, results) => {
         if(err){
           return rej(err);
         }

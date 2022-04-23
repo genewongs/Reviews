@@ -1,20 +1,36 @@
 const models = require('../models');
 
 module.exports = {
-  get: function(req, res) {
-    models.get()
+  getReviews: function(req, res) {
+    models.getReviews(req.query.product_id, req.query.page = 1, req.query.count = 5)
+      .then(data => {
+        let result = {
+          product: req.query.product_id,
+          page: req.query.page,
+          count: req.query.count,
+          results: data.rows,
+        }
+        res.send(result)
+      })
+      .catch(err => console.log(err));
+  },
+
+  getMeta: function(req, res) {
+    models.getMeta(req.query.product_id)
       .then(data => res.send(data.rows))
       .catch(err => console.log(err));
   },
 
   post: function(req, res) {
+    console.log(req.body)
       models.post(req.body)
-        .then(data => res.send(data.rows))
+        .then(data => res.status(201).send(data.rows))
         .catch(err => console.log(err));
   },
 
-  update: function(req, res) {
-    models.update(req.body)
+  updateHelpfullness: function(req, res) {
+    console.log(req.params)
+    models.updateHelpfullness()
       .then(data => res.send(data))
       .catch(err => console.log(err));
   },

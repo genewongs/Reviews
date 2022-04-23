@@ -17,7 +17,7 @@ CREATE TABLE Reviews (
   id SERIAL UNIQUE NOT NULL,
   product_id SERIAL NOT NULL,
   rating INTEGER NOT NULL,
-  date VARCHAR(16) NOT NULL,
+  date BIGINT NOT NULL,
   summary VARCHAR(128) NULL,
   body VARCHAR(1000) NOT NULL,
   recommend BOOLEAN NOT NULL,
@@ -52,18 +52,19 @@ CREATE TABLE characteristics_reviews (
 );
 
 CREATE TABLE characteristics (
-  id SERIAL NOT NULL,
+  id SERIAL UNIQUE,
   product_id INTEGER NOT NULL,
+  characteristic_id INTEGER NOT NULL,
   name VARCHAR(12) NOT NULL,
   value INTEGER NOT NULL,
   PRIMARY KEY (id)
 );
 
 CREATE TABLE Reviews2 (
-  id SERIAL UNIQUE NOT NULL,
+  id SERIAL UNIQUE,
   product_id SERIAL NOT NULL,
   rating INTEGER NOT NULL,
-  date VARCHAR(16) NOT NULL,
+  date BIGINT NOT NULL,
   summary VARCHAR(128) NULL,
   body VARCHAR(1000) NOT NULL,
   recommend BOOLEAN NOT NULL,
@@ -103,14 +104,15 @@ CREATE TABLE Reviews2 (
 \copy characteristics_reviews FROM './characteristic_reviews.csv' WITH (FORMAT CSV, HEADER);
 
 --Create Characteristics Table
-INSERT INTO characteristics (id, product_id, name, value)
-SELECT characteristics_reviews.id, chars.product_id, chars.name, characteristics_reviews.value
+INSERT INTO characteristics (product_id, characteristic_id, name, value)
+SELECT chars.product_id, characteristics_reviews.characteristic_id, chars.name, characteristics_reviews.value
 FROM chars INNER JOIN characteristics_reviews
 ON chars.id = characteristics_reviews.characteristic_id
 ORDER BY characteristics_reviews.characteristic_id;
 
-INSERT INTO reviews2
-SELECT reviews.*, COALESCE(photourl.photos, '[]') photos FROM reviews
+INSERT INTO reviews2 (product_id, rating, date, summary, body, recommend, reported, reviewer_name, reviewer_email, response, helpfulness, photos)
+SELECT reviews.product_id, reviews.rating, reviews.date, reviews.summary, reviews.body, reviews.recommend, reviews.reported, reviews.reviewer_name,
+  reviews.reviewer_email, reviews.response, reviews.helpfulness, COALESCE(photourl.photos, '[]') photos FROM reviews
 LEFT JOIN (SELECT review_id, JSON_AGG(JSON_BUILD_OBJECT('url', url)) photos FROM photos GROUP BY review_id) photourl
 ON photourl.review_id = reviews.id;
 
@@ -119,12 +121,16 @@ ON photourl.review_id = reviews.id;
 -- ---
 
 CREATE INDEX idx_rvw_product_id ON reviews(product_id);
+CREATE INDEX idx_rvw2_product_id ON reviews2(product_id);
 --CREATE INDEX idx_rvw_rec ON reviews(recommend);
 --CREATE INDEX idx_rvw_rating on reviews(rating);
 --CREATE INDEX idx_rvw_reported on reviews(reported);
 --CREATE INDEX idx_rvw_rvw_id ON Reviews(reviews_id);
 --RECOMMENDED, REPORTED, RATING, AND CHARACTERISTIC NAME.
 
+
+UPDATE reviews2 SET date=date/1000;
+ALTER TABLE reviews2 ALTER date TYPE TIMESTAMP WITHOUT TIME ZONE USING to_timestamp(date) AT TIME ZONE 'UTC';
 -- ---
 -- Table Properties
 -- ---
