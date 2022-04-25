@@ -5,13 +5,14 @@ const pool = require('./db');
 const controllers = require('./controllers');
 require('dotenv').config();
 const Routers = require('./routes.js');
+const morgan = require('morgan');
 
 const PORT = process.env.PORT || 3000;
 
 //middleware
 app.use(cors());
 app.use(express.json());
-
+app.use(morgan('dev'));
 
 app.use('/', Routers)
 //ROUTES

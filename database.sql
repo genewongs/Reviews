@@ -56,7 +56,7 @@ CREATE TABLE characteristics (
   product_id INTEGER NOT NULL,
   characteristic_id INTEGER NOT NULL,
   name VARCHAR(12) NOT NULL,
-  value INTEGER NOT NULL,
+  value INTEGER,
   PRIMARY KEY (id)
 );
 
@@ -105,10 +105,15 @@ CREATE TABLE Reviews2 (
 
 --Create Characteristics Table
 INSERT INTO characteristics (product_id, characteristic_id, name, value)
-SELECT chars.product_id, characteristics_reviews.characteristic_id, chars.name, characteristics_reviews.value
-FROM chars INNER JOIN characteristics_reviews
-ON chars.id = characteristics_reviews.characteristic_id
-ORDER BY characteristics_reviews.characteristic_id;
+SELECT chars.product_id, xchars.characteristic_id, chars.name, xchars.value
+FROM chars INNER JOIN
+( SELECT * FROM characteristics_reviews
+  RIGHT JOIN (SELECT * FROM generate_series(1,3347679) characteristic_id) series
+  USING (characteristic_id)
+  ORDER BY characteristic_id ASC
+) xchars
+ON chars.id = xchars.characteristic_id
+ORDER BY xchars.characteristic_id;
 
 INSERT INTO reviews2 (product_id, rating, date, summary, body, recommend, reported, reviewer_name, reviewer_email, response, helpfulness, photos)
 SELECT reviews.product_id, reviews.rating, reviews.date, reviews.summary, reviews.body, reviews.recommend, reviews.reported, reviews.reviewer_name,
@@ -120,8 +125,31 @@ ON photourl.review_id = reviews.id;
 -- PARTIAL INDEXES
 -- ---
 
-CREATE INDEX idx_rvw_product_id ON reviews(product_id);
+--good results:
+//Reviews2
 CREATE INDEX idx_rvw2_product_id ON reviews2(product_id);
+//Chracterisitics
+CREATE INDEX idx_char_product_id ON characteristics(product_id);
+CREATE INDEX idx_characteristics_name on characteristics(name);
+
+-- CREATE INDEX idx_rvw_product_id ON reviews(product_id);
+
+-- //Reviews2
+-- CREATE INDEX idx_rvw2_product_id ON reviews2(product_id);
+
+-- //Indexs for reviews for META
+-- CREATE INDEX idx_rvw2_recommend ON reviews2(recommend);
+-- CREATE INDEX idx_rvw2_rating ON reviews2(rating);
+
+-- //Chracterisitics
+-- CREATE INDEX idx_char_product_id ON characteristics(product_id);
+-- CREATE INDEX idx_characteristics_name on characteristics(name);
+
+-- CREATE INDEX idx_rvw2_char_id ON characteristics(characteristic_id);
+
+--not sure if below works well?...
+--
+
 --CREATE INDEX idx_rvw_rec ON reviews(recommend);
 --CREATE INDEX idx_rvw_rating on reviews(rating);
 --CREATE INDEX idx_rvw_reported on reviews(reported);
