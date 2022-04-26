@@ -1,16 +1,18 @@
 var pool = require('../db');
+var format = require('pg-format');
 
 module.exports = {
   getReviews: function(product_id, page = 1, count = 5, sortBy = 'relevant') {
     sortBy === 'relevant' ? sortBy = 'helpfulness DESC, date ' : sortBy = sortBy;
     return new Promise ((res, rej) => {
-      let sql = `
+      let sql = format(`
       SELECT id as review_id, rating, summary, recommend, response, body, date, reviewer_name, photos
       FROM reviews2
-      WHERE product_id = ${product_id}
-      ORDER BY ${sortBy} DESC
-      LIMIT ${count}
-      `;
+      WHERE product_id = %L AND reported = false
+      ORDER BY %s DESC
+      LIMIT %L
+      OFFSET %L
+      `, product_id, sortBy, count, ((page - 1) * count));
       pool.query(sql, (err, results) => {
         if (err) {
           return rej(err);
@@ -26,9 +28,9 @@ module.exports = {
   getMeta: function(params) {
     return new Promise ((res, rej) => {
       const product_id = params;
-      let sql = `WITH reviews AS
-      (SELECT recommend, rating FROM reviews2 WHERE product_id = ${params})
-        SELECT JSON_BUILD_OBJECT('product_id', ${params}, 'ratings', reviewsMeta.ratings, 'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.agg_chars) characteristics FROM
+      let sql = format(`WITH reviews AS
+      (SELECT recommend, rating FROM reviews2 WHERE product_id = %L)
+        SELECT JSON_BUILD_OBJECT('product_id', %L, 'ratings', reviewsMeta.ratings, 'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.agg_chars) characteristics FROM
           (
           SELECT * FROM
             (SELECT JSON_OBJECT_AGG(recommend_count.recommend, recommend_count.count) recommend, row_number() OVER() FROM
@@ -43,11 +45,11 @@ module.exports = {
             (
             SELECT JSON_OBJECT_AGG(chars.name, chars.average) AS agg_chars, row_number() OVER() FROM
               (SELECT averages.name, JSON_BUILD_OBJECT('id', averages.characteristic_id, 'value', averages.value) average FROM
-                (SELECT characteristic_id, name, AVG(value) AS value FROM characteristics WHERE product_id=${params} GROUP BY characteristic_id, name) averages
+                (SELECT characteristic_id, name, AVG(value) AS value FROM characteristics WHERE product_id=%L GROUP BY characteristic_id, name) averages
               ) chars
             ) char_obj
           ON recommend_obj.row_number = char_obj.row_number
-        ) reviewsMeta`;
+        ) reviewsMeta`, product_id, product_id, product_id);
       pool.query(sql, (err, results) => {
         if (err) {
           return rej(err);
@@ -63,33 +65,31 @@ module.exports = {
     const { Length = emptyObj, Comfort = emptyObj, Quality = emptyObj, Fit = emptyObj, Size = emptyObj, Width = emptyObj } = characteristics;
     const date = new Date();
     return new Promise ((res, rej) => {
-      let sql = `
+      let sql = format(`
       with j as (
         INSERT INTO reviews2
         (product_id, rating, date, summary, body, recommend, reported, reviewer_name, reviewer_email, response, helpfulness, photos)
-        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)
         )
       INSERT INTO characteristics (product_id, characteristic_id, name, value)
       SELECT * FROM (
         VALUES
-        ($1::integer, $13::integer, 'Length', $14::integer),
-        ($1::integer, $15::integer, 'Comfort', $16::integer),
-        ($1::integer, $17::integer, 'Quality', $18::integer),
-        ($1::integer, $19::integer, 'Fit', $20::integer),
-        ($1::integer, $21::integer, 'Size', $22::integer),
-        ($1::integer, $23::integer, 'Width', $24::integer)
+        (%L::integer, %L::integer, 'Length', %L::integer),
+        (%L::integer, %L::integer, 'Comfort', %L::integer),
+        (%L::integer, %L::integer, 'Quality', %L::integer),
+        (%L::integer, %L::integer, 'Fit', %L::integer),
+        (%L::integer, %L::integer, 'Size', %L::integer),
+        (%L::integer, %L::integer, 'Width', %L::integer)
       ) as vals
       WHERE column2 IS NOT NULL;
-      `;
+      `, product_id, rating, date.toISOString(), summary, body, recommend, false, name, email, '', 0, photos,
+        product_id, Length.id, Length.value,
+        product_id, Comfort.id, Comfort.value,
+        product_id, Quality.id, Quality.value,
+        product_id, Fit.id, Fit.value,
+        product_id, Size.id, Size.value,
+        product_id, Width.id, Width.value);
       pool.query(sql,
-        [product_id, rating, date.toISOString(), summary, body, recommend, false, name, email, '', 0, photos,
-          Length.id, Length.value,
-          Comfort.id, Comfort.value,
-          Quality.id, Quality.value,
-          Fit.id, Fit.value,
-          Size.id, Size.value,
-          Width.id, Width.value
-        ],
         (err, results) => {
       if(err) {
         return rej(err);
@@ -99,43 +99,9 @@ module.exports = {
     });
   },
 
-  postCharacteristics: function(reqBody) {
-    const { product_id, rating, summary, body, recommend, name, email, photos, characteristics } = reqBody;
-    let emptyObj = {id: null, value: null};
-    const { Length = emptyObj, Comfort = emptyObj, Quality = emptyObj, Fit = emptyObj, Size = emptyObj, Width = emptyObj } = characteristics;
-    return new Promise ((res,rej) => {
-      let sql = `
-      INSERT INTO characterstics (product_id, characteristics_id, name, value)
-      SELECT * FROM (
-        VALUES
-        ($1, $2, 'Length', $3),
-        ($4, $5, 'Comfort', $6),
-        ($7, $8, 'Quality', $9),
-        ($10, $11, 'Fit', $12),
-        ($13, $14, 'Size', $15),
-        ($16, $17, 'Width', $18)
-      ) as vals
-      WHERE column2 IS NOT NULL;
-      `
-      pool.query(sql,
-        [product_id, Length.id, Length.value,
-          product_id, Comfort.id, Comfort.value,
-          product_id, Quality.id, Quality.value,
-          product_id, Fit.id, Fit.value,
-          product_id, Size.id, Size.value,
-          product_id, Width.id, Width.value],
-        (err, results) => {
-        if(err) {
-          return rej(err);
-        }
-        res(results);
-      });
-    });
-  },
-
   updateHelpfullness: function(params) {
     return new Promise((res,rej) => {
-      let sql = `UPDATE reviews2 SET helpfulness = helpfulness + 1 WHERE id = ${params.review_id}`
+      let sql = format(`UPDATE reviews2 SET helpfulness = helpfulness + 1 WHERE id = %L`, params.review_id)
       pool.query(sql, (err, results) => {
         if(err){
           return rej(err);
@@ -147,7 +113,7 @@ module.exports = {
 
   updateReport: function(params) {
     return new Promise((res,rej) => {
-      let sql = `UPDATE reviews2 SET reported = true WHERE id = ${params.review_id}`
+      let sql = format(`UPDATE reviews2 SET reported = true WHERE id = %L`, params.review_id)
       pool.query(sql, (err, results) => {
         if(err){
           return rej(err);
