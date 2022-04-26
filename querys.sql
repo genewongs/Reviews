@@ -122,3 +122,76 @@ ON reviews.id = photourl.review_id AND reviews.reported = false LIMIT 5;
 -- FORM characteristics name, and object of id and values.
 -- SELECT name,JSON_BUILD_OBJECT('id', averages.characteristic_id, 'value', averages.value) FROM
 -- (SELECT name, AVG(value) AS value, characteristic_id FROM characteristics WHERE product_id=1 GROUP BY characteristic_id, name) AS averages;
+
+
+
+
+
+
+// `SELECT JSON_BUILD_OBJECT('product_id', 1232, 'ratings', reviewsMeta.ratings,'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.combinedChar) as characteristics FROM
+//       (
+//         SELECT * FROM
+//           (SELECT JSON_OBJECT_AGG(recommend_count.recommend, recommend_count.count) recommend, row_number() OVER() FROM
+//             (SELECT recommend, COUNT(*) FROM reviews2 where product_id=1232 GROUP BY recommend) recommend_count
+//           ) recommend_obj
+//         INNER JOIN
+//           (SELECT JSON_OBJECT_AGG(rating_counts.rating, rating_counts.count) ratings, row_number() OVER() FROM
+//             (SELECT rating, COUNT(*) FROM reviews2 WHERE product_id=1232 GROUP BY rating) rating_counts
+//           ) rating_obj
+//         ON recommend_obj.row_number = rating_obj.row_number
+//         INNER JOIN
+//         (
+//         SELECT JSON_OBJECT_AGG(avg_obj.name, avg_obj.value) combinedChar, row_number() OVER() FROM (
+//           SELECT name,JSON_BUILD_OBJECT('id', averages.characteristic_id, 'value', averages.value) as value FROM
+//           (SELECT name, AVG(value) AS value, characteristic_id
+//            FROM characteristics
+//            WHERE product_id=1232
+//            GROUP BY characteristic_id, name) AS averages
+//         ) as avg_obj
+//         ) as characteristics_aggregate
+//         ON rating_obj.row_number = characteristics_aggregate.row_number
+//       ) reviewsMeta`;
+
+
+
+// `WITH reviews AS
+//         (SELECT recommend, rating FROM reviews2 WHERE product_id = 1232)
+//       SELECT JSON_BUILD_OBJECT('product_id', 1232, 'ratings', reviewsMeta.ratings, 'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.agg_chars) characteristics FROM
+//         (
+//         SELECT * FROM
+//           (SELECT JSON_OBJECT_AGG(recommend_count.recommend, recommend_count.count) recommend, row_number() OVER() FROM
+//             (SELECT recommend, COUNT(*) FROM reviews GROUP BY recommend) recommend_count
+//           ) recommend_obj
+//         INNER JOIN
+//           (SELECT JSON_OBJECT_AGG(rating_counts.rating, rating_counts.count) ratings, row_number() OVER() FROM
+//             (SELECT rating, COUNT(*) FROM reviews GROUP BY rating) rating_counts
+//           ) rating_obj
+//         ON recommend_obj.row_number = rating_obj.row_number
+//         INNER JOIN
+//           (
+//           SELECT JSON_OBJECT_AGG(chars.name, chars.average) AS agg_chars, row_number() OVER() FROM
+//             (SELECT averages.name, JSON_BUILD_OBJECT('id', averages.characteristic_id, 'value', averages.value) average FROM
+//               (SELECT name, AVG(value) AS value, characteristic_id FROM characteristics WHERE product_id=1232 GROUP BY characteristic_id, name) averages
+//             ) chars
+//           ) char_obj
+//         ON recommend_obj.row_number = char_obj.row_number
+//       ) reviewsMeta`;
+
+
+
+
+
+//UNITS TEST
+// SELECT JSON_BUILD_OBJECT(
+//   'product_id', 12,
+//   'ratings', (SELECT JSON_OBJECT_AGG(rating, rating_data)
+//     FROM (SELECT rating, count(*) AS rating_data FROM reviews2 WHERE product_id = 12 GROUP BY rating) AS rate),
+//   'recommended', (SELECT JSON_OBJECT_AGG(recommend, rec_data)
+//     FROM (SELECT recommend, count(*) AS rec_data FROM reviews2 WHERE product_id = 12 GROUP BY recommend) AS rec),
+//   'characteristics', (SELECT JSON_OBJECT_AGG(name, JSON_BUILD_OBJECT(
+//           'id', characteristic_id,
+//           'value', value
+//     ))
+//     FROM (SELECT name, characteristic_id, sum(value)/count(*) AS value
+//       FROM characteristics WHERE product_id = 12 GROUP BY name, characteristic_id) AS char)
+// )

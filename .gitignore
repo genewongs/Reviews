@@ -102,9 +102,7 @@ dist
 
 # TernJS port file
 .tern-port
-
-characteristic_reviews.csv
-characteristics.csv
-reviews_photos.csv
-reviews.csv
 package-lock.json
+*.csv
+server/_tests_
+server/k6

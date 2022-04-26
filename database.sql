@@ -159,6 +159,11 @@ CREATE INDEX idx_characteristics_name on characteristics(name);
 
 UPDATE reviews2 SET date=date/1000;
 ALTER TABLE reviews2 ALTER date TYPE TIMESTAMP WITHOUT TIME ZONE USING to_timestamp(date) AT TIME ZONE 'UTC';
+
+DROP TABLE reviews;
+DROP TABLE photos;
+DROP TABLE chars;
+DROP TABLE characteristic_reviews;
 -- ---
 -- Table Properties
 -- ---
