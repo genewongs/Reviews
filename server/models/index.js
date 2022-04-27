@@ -27,7 +27,7 @@ module.exports = {
       const product_id = params;
       let sql = format(`WITH reviews AS
       (SELECT recommend, rating FROM reviews2 WHERE product_id = %L)
-        SELECT JSON_BUILD_OBJECT('product_id', %L, 'ratings', reviewsMeta.ratings, 'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.agg_chars) characteristics FROM
+        SELECT JSON_BUILD_OBJECT('product_id', %L, 'ratings', reviewsMeta.ratings, 'recommended', reviewsMeta.recommend, 'characteristics', reviewsMeta.agg_chars) AS characteristics FROM
           (
           SELECT * FROM
             (SELECT JSON_OBJECT_AGG(recommend_count.recommend, recommend_count.count) recommend, row_number() OVER() FROM
