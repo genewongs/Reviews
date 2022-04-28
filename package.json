@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon server/index.js",
+    "startNR": "node -r newrelic server/index.js",
     "test": "jest"
   },
   "repository": {
