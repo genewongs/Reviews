@@ -12,6 +12,14 @@ npm install
 Start the Postgresql service on your terminal
 
 Rename the `example.env` file to `.env` and configure the variables within.
+```
+PORT=<port number>
+DB_HOST=<db hostname>
+DB_PORT=<db port number>
+DB_USER=<db username>
+DB_PW=<db password>
+DB_NAME=<db name>
+```
 
 ```
 npm start
