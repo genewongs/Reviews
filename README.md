@@ -1,7 +1,7 @@
 # Reviews
 This is a node/express/Postgres application that provides an API for the reviews portion of Project Atelier's website
 
-## Ensure that Postgresql is install onto your computer
+## Ensure that Postgresql is installed onto your computer
 
 ## Installation
 
